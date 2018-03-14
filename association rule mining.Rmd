@@ -1,0 +1,227 @@
+---
+title: "STAT5703 Assignment1 (Excluding Ggobi part)"
+author: "Vicky Xu"
+date: '2018-02-06'
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Question1
+1. prepare the dataset
+```{r}
+car <- read.csv('carsokc.csv', header=TRUE)
+head(car)
+car$Cylinders <- as.factor(car$Cylinders)
+car$Year <- as.factor(car$Year)
+car$Origin <- as.factor(car$Origin)
+str(car)
+
+```
+2. Scatterplot matrix
+```{r}
+pairs(car)
+pairs(car,col=car$Origin)
+```
+From the first Scatterplot matrix, I found that there is an obvious negative liner association between MPG and Horsepower, so as MPG and Weight. There is an obvious positive liner association between Horsepower and Weight. There is no obvious trend between year and other variables. 
+In the second graph, I categorized cars by their origins. Black represents 'USA', red represents 'Japan', and green represents 'Europe'. We can clearly see that cars from the US tend to have wider range in MPG, maybe because the car's variety is higher in the US. Besides, US cars tend to have larger horsepower and weight with smaller MPG, which makes sense. 
+
+
+We input Some useful functions
+```{r}
+panel.smooth.asp <- function (x, y, col = par("col"), bg = NA, pch = par("pch"),
+cex = 1, col.smooth = "red", span = 2/3, iter = 3, asp,...)
+{
+  points(x, y, pch = pch, col = col, bg = bg, cex = cex, asp = 1)
+  ok <- is.finite(x) & is.finite(y)
+  if (any(ok))
+  lines(lowess(x[ok], y[ok], f = span, iter = iter), col = col.smooth,...)
+}
+## put (absolute) correlations on the upper panels,
+## with size proportional to the correlations.
+panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor) {
+usr <- par("usr"); on.exit(par(usr))
+par(usr = c(0, 1, 0, 1))
+r <- cor(x, y)
+txt <- format(c(r, 0.123456789), digits=digits)[1]
+txt <- paste(prefix, txt, sep = "")
+if(missing(cex.cor)) cex.cor <- 0.8/strwidth(txt)*abs(r)
+text(0.5, 0.5, txt, cex = cex.cor)
+}
+## put histograms on the diagonal
+panel.hist <- function(x, ...) {
+usr <- par("usr"); on.exit(par(usr))
+par(usr = c(usr[1:2], 0, 1.5) )
+h <- hist(x, plot = FALSE)
+breaks <- h$breaks; nB <- length(breaks)
+y <- h$counts; y <- y/max(y)
+rect(breaks[-nB], 0, breaks[-1], y, col = "cyan", ...)
+}
+pairs(car, upper.panel = panel.cor, diag.panel = panel.hist)
+```
+To save space, I modified the scatterplot matrix by changing the diagonals to histograms of the variables, and the upper diagonal is changed to all cooresponding correlations. We can clearly see high, positive correlations beween cylinders and weight(0.89), horsepower and weight(0.86). MPG has strong linear associations with cylinders(-0.78), horsepower(-0.78) and weight(-0.83).
+
+```{r}
+coplot(MPG~Horsepower|Cylinders, data=car, col=car$Origin,rows=1,pch = 1)
+legend("center", col = unique(as.numeric(car$Origin)), pch = 1, legend = c('USA','Europe','Japan'))
+```
+This graph shows the relationship between MPG and Horsepower given different numbers of Cylinders. We found that in general there is a nagetive relationship between MPG and Horsepower. The majority of European cars have three or four cylinders with larger MPG and smaller Horsepower, but this is not the case for American cars. American Cars usually have four, six, or eight cylinders, and they tend to have larger horsepower with lower MPGs. Only American cars have eight cylinders with larger horsepower, and only Japanese cars have five cylinders. 
+```{r}
+coplot(MPG~Horsepower|Origin, data=car, col=car$Cylinders,rows=1,pch=1)
+legend("center", col = unique(as.numeric(car$Cylinders)), pch = 1, legend = unique(car$Cylinders))
+```
+From this graph, we can conclude that, on average, European cars and Japanese cars have higher MPGs compared with USA cars. 
+
+
+```{r}
+coplot(MPG~Weight|Cylinders, data=car, col=car$Origin,rows=1)
+legend("center", col = unique(as.numeric(car$Origin)), pch = 1, legend = c('USA','Europe','Japan'))
+```
+We can conclude the relationship between MPG and Weight givern different cylinders are the same as relationship between MPG and Weight. Most of the USA cars have more weight and more cylinders compared with European cars and Japanese cars. European cars and Japanese cars have higher MPG with low weight. 
+
+
+
+We input some useful functions for conditional plots
+```{r}
+library(lattice)
+equal.space <- function(data, count) {
+# range(data) gives the max and min of the variable data.
+# diff takes the difference between the two values so
+# diffs gives the width of each interval.
+diffs <- diff(range(data))/count
+# min(data)+diffs*(0:(count-1)) gives the starting values
+# for the intervals.
+# min(data)+diffs*(1:count) gives the ending values
+# for the intervals.
+# cbind treats two(or more) vectors as column vectors
+# and binds them as columns of a matrix.
+intervals <- cbind(min(data)+diffs*(0:(count-1)),
+min(data)+diffs*(1:count))
+# shingle takes the interval structure and the data
+# and breaks the data into the appropriate groups.
+return (shingle(data, intervals))
+}
+
+C1 <- equal.count(car$Weight, number = 6, overlap = 0.1)
+xyplot(MPG ~Horsepower | C1, data = car, pch = 19)
+```
+We divide the factor "weight" into six equal space. As weight increase, Horsepower tends to increase as well, while MPG tends to decrease. 
+
+
+
+
+
+Question2
+1. prepare the dataset 
+```{r}
+# install.packages("openxlsx")
+library("openxlsx")
+library(stringr)
+library(arules)
+# load the data
+online_retail <- read.xlsx('Online Retail.xlsx')
+online_retail$InvoiceDate <- convertToDate(online_retail$InvoiceDate)
+head(online_retail)
+str(online_retail)
+```
+To reduce errors, we first clean the data
+```{r}
+online_retail$InvoiceNo <- toupper(online_retail$InvoiceNo)
+online_retail$StockCode <- toupper(online_retail$StockCode)
+online_retail$Description <- toupper(online_retail$Description)
+online_retail$Country <- toupper(online_retail$Country)
+length(table(online_retail$InvoiceNo)) # 25900 transactions 
+length(table(online_retail$StockCode)) # 3958 distinct products
+length(table(online_retail$Description)) # 4206
+```
+Prep1: Cancellation? We need to screen them out
+```{r}
+purchased <- online_retail[substring(online_retail$InvoiceNo,1,1)!='C',]
+```
+Prep2: why 3958 products have 4206 descriptions? Maybe some other typos... We can clean the descriptions by replacing descriptions with the most 'popular' observations
+```{r}
+purchased <- purchased[!is.na(purchased$Description),]
+purchased <- purchased[!is.na(purchased$InvoiceNo),]
+purchased <- purchased[!is.na(purchased$StockCode),]
+purchased <- purchased[!grepl('\\?',purchased$Description),]
+
+length(table(purchased$InvoiceNo)) # 20528 unique transactions
+length(table(purchased$StockCode)) # 3833 unique items
+length(table(purchased$Description)) # 4166 unique descriptions
+```
+Prep3: doouble-check if invoice numbers and StockCode have NAs
+```{r}
+length(purchased$InvoiceNo[purchased$InvoiceNo == 'NA']) # 0
+nrow(purchased[is.na(purchased$InvoiceNo),]) # 0
+length(purchased$StockCode[purchased$StockCode == 'NA']) # 0
+nrow(purchased[is.na(purchased$StockCode),]) # 0
+length(purchased$Description[purchased$Description == 'NA']) # 0
+nrow(purchased[is.na(purchased$Description),]) # 0
+nrow(purchased[is.na(purchased$InvoiceDate),]) # 0
+```
+
+Now, Convert products into matrix form
+```{r}
+purchased_matrix <- purchased[,c(1,3)]
+InvoiceNo <- names(table(purchased_matrix$InvoiceNo)) # all unique transactions
+
+n.baskets <- 20528
+numb <- 4166                            # Number of items in baskets, represented by descriptions
+ # Simulation of baskets
+ # Create a matrix to represent the basket (holds 3803 items) 
+baskets <- matrix(0, n.baskets, numb)
+heading <- names(table(purchased$Description))
+dimnames(baskets) <- list (NULL, heading)
+for (i in 1:n.baskets)
+{
+  all_items <- purchased_matrix[purchased_matrix$InvoiceNo == InvoiceNo[i],]
+  baskets[i, all_items$Description] <- 1
+}
+```
+
+Now, we apply Apriori Algorithm
+```{r}
+item.in.basket <- apply (baskets, 2, sum)
+percent.in.basket <- round(item.in.basket/n.baskets*100, 2)
+
+rules <- apriori(apply(baskets, 2, as.numeric), parameter = list(supp = 0.020, conf = 0.7, target = "rules"))
+
+summary(rules)
+inspect(rules)
+```
+I first opened the dataset by using the 'openxlsx' package, then examined the structure of the dataset. I noticed that 'InvoiceNo', 'StockCode', 'Description' and 'Country' are string variables, so I changed them all to upper cases to reduce errors. Also, 'InvoiceDate' are numbers instead of dates, so I used convertToDate() function in the 'openxlsx' package to convert them into date format. There were 3958 unique stock codes but 4206 unique description due to two major reasons: missing values (NAs) and some descriptions were simply questions marks or they contained question marks. After removing rows with these two problems, I removed rows whose 'InvoiceNo' start with 'C', as it represents cancellation. The final step in data cleaning was to make sure that no missing values were included in 'InvoiceNo' (as each unique invoice number represents one transaction), 'StockCode' and 'Description' (as each unique stock code or description represents one product).
+After data cleaning, I produced a matrix with 'InvoiceNo' as the row and 'Description' as the column, so that each row of the matrix represents one transaction. Whether a certain product is purchased is a binary response (0 = No, 1 = Yes). After producing the matrix, I applied the Apriori Algorithm in the 'arules' package.
+I set the support level at 0.02 and the confidence level at 0.7. Since the support is the probability of buying a certain product, so I was trying to make the support level as high as possible. However, it does not show any rules with the high support level. I think maybe it is because there are around 4000 kinds of products, so the variability is large.  The top 10 rules are as the above. For example, in the first rule, if the person buys Pink regency teacup and saucer, he/she will also buy Rose regency teacup and saucer. We are 78.19 percent confident that this rule holds, and the probability of buying Rose regency teacup and saucer is 78.19 percent given the Pink regency teacup and saucer was brought. The lift is 15.05, which means it is a significant improvement. 
+
+
+
+
+
+Question3
+
+As our data have other useful information such as 'InvoiceDate' and 'Country', we could explore custome behaviors demographically by seeing whether there is an association between country and product. And we can see if there exists associations between products and purchase date, so that we could get a sense about which product is 'popular' on a certain day.
+
+Example1:
+we can explore whether there is an association between the product and the country
+As I'm still planning to use apriori algorithm in the 'arules' package, the input of apriori() function must be from the 'transactions' class. The logic is similar to the previous 'baskets' variable: we can subset from the 'purchased' data frame, each row represents each transaction, but there will be two columns representing two variables (i.e. InvoiceDate and Country). Then convert this new data frame into class 'transactions' by using the as() command. Finally, apply the apriori function and use inspect() function to see all the rules.
+
+```{r}
+desc_and_country <- data.frame(desc = as.factor(purchased$Description),country = as.factor(purchased$Country))
+desc_and_country <- as(desc_and_country,'transactions')
+rules <- apriori(desc_and_country,parameter=list(supp = 0.01, conf = 0.01, target = "rules")) 
+inspect(rules)
+```
+We can notice that even though the confidence is high, the lift is still pretty low.Why the lift is so low? Because most items are purchased by 'United Kindom'. The following line of code states that 91.5% of the data is for the country 'UNITED KINDOM'.
+```{r}
+nrow(purchased[(purchased$Country == "UNITED KINGDOM"),])/nrow(purchased) #[1] 0.9152697
+```
+
+Example2: we can also explore whether there is an association between the product and the date, specifically in United Kingdom. Before association rule mining, I only keep month and day for the 'InvoiceDate' variable as we care more about the specific date or month rather than the year (the time span is only two years).
+
+
+
